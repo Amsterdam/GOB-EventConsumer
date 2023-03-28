@@ -1,0 +1,32 @@
+version: '3.7'
+
+services:
+
+  gobeventconsumer:
+    env_file: ./.env
+#    deploy:
+#      replicas: 3
+    build: src
+    environment:
+      MESSAGE_BROKER_ADDRESS: rabbitmq
+      SCHEMA_URL: /tmp/ams-schema/datasets
+      DATABASE_URL: "postgresql://dataservices:insecure@consumer-database/dataservices"
+    volumes:
+      - ./src/gobeventconsumer:/app/gobeventconsumer
+      - ./../../schema-tools/src/schematools:/app/src/amsterdam-schema-tools/src/schematools
+    links:
+      - consumer-database
+
+  consumer-database:
+    image: amsterdam/postgres11
+    ports:
+      - "9544:5432"
+    environment:
+      POSTGRES_DB: dataservices
+      POSTGRES_USER: dataservices
+      POSTGRES_PASSWORD: insecure
+
+networks:
+  default:
+    name: gob-network
+    external: true
