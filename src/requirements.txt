@@ -1,4 +1,4 @@
--e git+https://github.com/Amsterdam/schema-tools.git@v5.6.12#egg=amsterdam-schema-tools
+-e git+https://github.com/Amsterdam/schema-tools.git@9999ed2#egg=amsterdam-schema-tools
 pika==1.3.1
 
 black~=23.1.0
