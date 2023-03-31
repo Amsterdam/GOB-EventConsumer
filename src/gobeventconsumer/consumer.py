@@ -54,8 +54,12 @@ class GOBEventConsumer:
         """
         for catalog in self._catalogs:
             callback = self._on_message(catalog)
-            self._create_queue_and_consume(channel, catalog, f"{catalog}.*", callback)  # Regular objects
-            self._create_queue_and_consume(channel, f"{catalog}.rel", f"{catalog}.rel.*", callback)  # Relations
+            self._create_queue_and_consume(
+                channel, f"{EVENTS_EXCHANGE}.{catalog}", f"{catalog}.*", callback
+            )  # Regular objects
+            self._create_queue_and_consume(
+                channel, f"{EVENTS_EXCHANGE}.{catalog}.rel", f"{catalog}.rel.*", callback
+            )  # Relations
 
     def _transform_rel_eventdata(self, dataset_schema, header: dict, data: dict):
         """Transform incoming relation table event to the structure as understood by the EventsProcessor.
