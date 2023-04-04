@@ -43,12 +43,49 @@ class GOBEventConsumer:
         self._logger.info(f"Start listening to queue {queue_name}")
 
     def _on_channel_open(self, channel: pika.channel.Channel):
+        """Create two queues for each catalog.
+
+        For example, for catalog 'nap', we create the following queues:
+        - nap: This queue receives messages with routing key nap.* . These are the regular nap objects.
+        - nap.rel: This queue receives messages with routing key nap.rel.*, for the relation table events.
+
+        All queues are created with the "single active consumer" flag, so that we can safely run multiple instances of
+        this service in parallel.
+        """
         for catalog in self._catalogs:
             callback = self._on_message(catalog)
-            self._create_queue_and_consume(channel, catalog, f"{catalog}.*", callback)  # Regular objects
-            self._create_queue_and_consume(channel, f"{catalog}.rel", f"{catalog}.rel.*", callback)  # Relations
+            self._create_queue_and_consume(
+                channel, f"{EVENTS_EXCHANGE}.{catalog}", f"{catalog}.*", callback
+            )  # Regular objects
+            self._create_queue_and_consume(
+                channel, f"{EVENTS_EXCHANGE}.{catalog}.rel", f"{catalog}.rel.*", callback
+            )  # Relations
 
     def _transform_rel_eventdata(self, dataset_schema, header: dict, data: dict):
+        """Transform incoming relation table event to the structure as understood by the EventsProcessor.
+
+        The 'src' and 'dst' keys are renamed to names with the source object and relation name respectively, and a
+        composite key is added.
+
+        For example, for nap peilmerken_ligtInBouwblok, the transformed event has the following keys, with the original
+        keys from the event on the right hand side.
+
+        peilmerken_identificatie: src_id
+        peilmerken_id: src_id (would have been src_id.src_volgnummer if peilmerken would have had states. Note that the
+                               incoming event does contain an empty (None) src_volgnummer))
+        ligt_in_bouwblok_identificatie: dst_id
+        ligt_in_bouwblok_volgnummer: dst_volgnummer
+        ligt_in_bouwblok_id: dst_id.dst_volgnummer
+        id: id
+        begin_geldigheid: begin_geldigheid
+        eind_geldigheid: eind_geldigheid
+
+        Note that the EventsProcessor may ignore some keys. For this particular case, peilmerken_identificatie,
+        begin_geldigheid and eind_geldigheid are (at this moment) ignored. This may change in the future, and we don't
+        want to copy the EventsProcessor logic here, so we just construct all the fields we possibly can.
+
+        """
+
         def get_transformed_fields(data: dict, src_or_dst: str, new_prefix: str, identifier_fields: list):
             transformed = {
                 f"{new_prefix}_id": ".".join(
