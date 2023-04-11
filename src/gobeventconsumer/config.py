@@ -18,6 +18,6 @@ CONNECTION_PARAMS = pika.ConnectionParameters(
 
 EVENTS_EXCHANGE = "gob.events"
 
-CATALOGS = os.getenv("LISTEN_CATALOGS", "").split(",")
+CATALOGS = os.getenv("LISTEN_TO_CATALOGS", "").split(",")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 SCHEMA_URL = os.getenv("SCHEMA_URL", "")
