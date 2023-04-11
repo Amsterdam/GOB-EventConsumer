@@ -7,6 +7,6 @@ services:
       target: test
     environment:
       SCHEMA_URL: /tmp/ams-schema/datasets
-      LISTEN_CATALOGS: "gebieden,nap"
+      LISTEN_TO_CATALOGS: "gebieden,nap"
     command: >
       bash -c "./test.sh"
