@@ -43,26 +43,26 @@ class TestGOBEventConsumer(TestCase):
         gec._on_channel_open(mock_channel)
 
         mock_channel.queue_declare.assert_has_calls([
-            call("gebieden", durable=True, arguments={"x-single-active-consumer": True}),
-            call("gebieden.rel", durable=True, arguments={"x-single-active-consumer": True}),
-            call("meetbouten", durable=True, arguments={"x-single-active-consumer": True}),
-            call("meetbouten.rel", durable=True, arguments={"x-single-active-consumer": True}),
+            call("gob.events.gebieden", durable=True, arguments={"x-single-active-consumer": True}),
+            call("gob.events.gebieden.rel", durable=True, arguments={"x-single-active-consumer": True}),
+            call("gob.events.meetbouten", durable=True, arguments={"x-single-active-consumer": True}),
+            call("gob.events.meetbouten.rel", durable=True, arguments={"x-single-active-consumer": True}),
         ])
 
         self.assertEqual(EVENTS_EXCHANGE, "gob.events")
 
         mock_channel.queue_bind.assert_has_calls([
-            call(exchange=EVENTS_EXCHANGE, queue="gebieden", routing_key="gebieden.*"),
-            call(exchange=EVENTS_EXCHANGE, queue="gebieden.rel", routing_key="gebieden.rel.*"),
-            call(exchange=EVENTS_EXCHANGE, queue="meetbouten", routing_key="meetbouten.*"),
-            call(exchange=EVENTS_EXCHANGE, queue="meetbouten.rel", routing_key="meetbouten.rel.*"),
+            call(exchange=EVENTS_EXCHANGE, queue="gob.events.gebieden", routing_key="gebieden.*"),
+            call(exchange=EVENTS_EXCHANGE, queue="gob.events.gebieden.rel", routing_key="gebieden.rel.*"),
+            call(exchange=EVENTS_EXCHANGE, queue="gob.events.meetbouten", routing_key="meetbouten.*"),
+            call(exchange=EVENTS_EXCHANGE, queue="gob.events.meetbouten.rel", routing_key="meetbouten.rel.*"),
         ])
 
         mock_channel.basic_consume.assert_has_calls([
-            call(queue="gebieden", on_message_callback=gec._on_message('gebieden')),
-            call(queue="gebieden.rel", on_message_callback=gec._on_message('gebieden')),
-            call(queue="meetbouten", on_message_callback=gec._on_message('meetbouten')),
-            call(queue="meetbouten.rel", on_message_callback=gec._on_message('meetbouten')),
+            call(queue="gob.events.gebieden", on_message_callback=gec._on_message('gebieden')),
+            call(queue="gob.events.gebieden.rel", on_message_callback=gec._on_message('gebieden')),
+            call(queue="gob.events.meetbouten", on_message_callback=gec._on_message('meetbouten')),
+            call(queue="gob.events.meetbouten.rel", on_message_callback=gec._on_message('meetbouten')),
         ])
 
     @patch("gobeventconsumer.consumer.create_engine")
