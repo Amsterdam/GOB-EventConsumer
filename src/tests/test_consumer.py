@@ -108,6 +108,65 @@ class TestGOBEventConsumer(TestCase):
 
     @patch("gobeventconsumer.consumer.create_engine")
     @patch("gobeventconsumer.consumer.EventsProcessor")
+    def test_message_handler_obj_event_reldata(self, mock_event_processor, mock_create_engine, mock_logger):
+        gec = GOBEventConsumer(MagicMock(), [])
+
+        message_handler = gec._on_message("nap")
+        mock_create_engine.assert_called_once()
+
+        method = MagicMock()
+        method.routing_key = "nap.peilmerken"
+        body = bytes(json.dumps({
+            "header": {
+                "catalog": "nap",
+                "collection": "peilmerken",
+                "event_id": 1844,
+            },
+            "data": {
+                "ligt_in_bouwblok": {
+                    "tid": "100.1",
+                    "id": "100",
+                    "begin_geldigheid": "2022-02-02 00:01:02",
+                    "eind_geldigheid": None,
+                    "volgnummer": 3,
+                },
+                "some": "other",
+                "data": {
+                    "etc": "more",
+                }
+            }
+        }), "utf-8")
+        channel = MagicMock()
+
+        message_handler(channel, method, {}, body)
+
+        mock_event_processor.return_value.process_event.assert_called_with(
+            1844,
+            {
+                "catalog": "nap",
+                "collection": "peilmerken",
+                "event_id": 1844,
+                "dataset_id": "nap",
+                "table_id": "peilmerken",
+            },
+            {
+                "ligt_in_bouwblok": {
+                    "id": "100.1",
+                    "identificatie": "100",
+                    "begin_geldigheid": "2022-02-02 00:01:02",
+                    "eind_geldigheid": None,
+                    "volgnummer": 3,
+                },
+                "some": "other",
+                "data": {
+                    "etc": "more",
+                },
+            }
+        )
+
+
+    @patch("gobeventconsumer.consumer.create_engine")
+    @patch("gobeventconsumer.consumer.EventsProcessor")
     def test_message_handler_rel_event(self, mock_event_processor, mock_create_engine, mock_logger):
         gec = GOBEventConsumer(MagicMock(), [])
 

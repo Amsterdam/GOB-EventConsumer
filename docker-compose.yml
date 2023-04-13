@@ -14,6 +14,7 @@ services:
     volumes:
       - ./src/gobeventconsumer:/app/gobeventconsumer
       - ./../../schema-tools/src/schematools:/app/src/amsterdam-schema-tools/src/schematools
+      - ./../../schema-tools/src/schematools:/usr/local/lib/python3.9/site-packages/schematools
     depends_on:
       - consumer-database
 
