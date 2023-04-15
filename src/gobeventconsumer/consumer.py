@@ -61,6 +61,51 @@ class GOBEventConsumer:
                 channel, f"{EVENTS_EXCHANGE}.{catalog}.rel", f"{catalog}.rel.*", callback
             )  # Relations
 
+    def _transform_obj_eventdata(self, dataset_schema, header: dict, data: dict):
+        """Transform incoming object table event to the structure as understood by the EventsProcessor.
+
+        Renames the fields in the relations. For example, for a nap_peilmerken object, we have a nested relation
+        ligt_in_bouwblok. The incoming keys are tid, id, volgnummer, begin_geldigheid, eind_geldigheid. We want
+        id, identificatie, volgnummer, begin/eind_geldigheid. The 'id' in EventsProcessor has the role of the 'tid'.
+
+        The mapping is as follows (EventsProcessor: incoming):
+
+        id: tid,
+        identificatie: id ('identificatie' is specific to ligt_in_bouwblok, this depends on the identifier)
+        volgnummer: volgnummer
+        begin_geldigheid: begin_geldigheid
+        eind_geldigheid: eind_geldigheid
+        """
+
+        def transform_relation(identifier: str, relation_data: dict):
+            mapping = {
+                "volgnummer": "volgnummer",
+                "begin_geldigheid": "begin_geldigheid",
+                "eind_geldigheid": "eind_geldigheid",
+                "id": "tid",
+                identifier: "id",
+            }
+
+            return {k: relation_data.get(v) for k, v in mapping.items()}
+
+        table = dataset_schema.get_table_by_id(header["collection"])
+        transformed_relations = {}
+
+        for field in table.fields:
+            if field.get("relation"):
+                relation_data = data[field.python_name]
+                identifier = field.related_table.identifier[0]
+                transformed_relations[field.python_name] = (
+                    transform_relation(identifier, relation_data)
+                    if isinstance(relation_data, dict)
+                    else [transform_relation(identifier, rel_data) for rel_data in relation_data]
+                )
+
+        return {
+            **data,
+            **transformed_relations,
+        }
+
     def _transform_rel_eventdata(self, dataset_schema, header: dict, data: dict):
         """Transform incoming relation table event to the structure as understood by the EventsProcessor.
 
@@ -130,6 +175,8 @@ class GOBEventConsumer:
 
             if method.routing_key.startswith(f"{catalog}.rel."):
                 data = self._transform_rel_eventdata(dataset_schema, header, data)
+            else:
+                data = self._transform_obj_eventdata(dataset_schema, header, data)
 
             with engine.connect() as connection:
                 importer = EventsProcessor([dataset_schema], connection)
