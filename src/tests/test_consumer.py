@@ -93,7 +93,6 @@ class TestGOBEventConsumer(TestCase):
 
         mock_event_processor.assert_called_with([mock_get_dataset_schema.return_value], mock_connection)
         mock_event_processor.return_value.process_event.assert_called_with(
-            1844,
             {
                 "catalog": "gebieden",
                 "collection": "bouwblokken",
@@ -105,6 +104,66 @@ class TestGOBEventConsumer(TestCase):
                 "some": "data",
             }
         )
+
+    @patch("gobeventconsumer.consumer.create_engine")
+    @patch("gobeventconsumer.consumer._get_dataset_schema")
+    @patch("gobeventconsumer.consumer.EventsProcessor")
+    def test_message_handler_batch(self, mock_event_processor, mock_get_dataset_schema, mock_create_engine, mock_logger):
+        gec = GOBEventConsumer(MagicMock(), [])
+        mock_connection = mock_create_engine.return_value.connect.return_value.__enter__.return_value
+
+        message_handler = gec._on_message("gebieden")
+        mock_create_engine.assert_called_once()
+
+        method = MagicMock()
+        method.routing_key = "gebieden.bouwblokken"
+        body = bytes(json.dumps([{
+            "header": {
+                "catalog": "gebieden",
+                "collection": "bouwblokken",
+                "event_id": 1844,
+            },
+            "data": {
+                "some": "data"
+            }
+        }, {
+            "header": {
+                "catalog": "gebieden",
+                "collection": "bouwblokken",
+                "event_id": 1845,
+            },
+            "data": {
+                "some": "other data"
+            }
+        },
+        ]), "utf-8")
+        channel = MagicMock()
+
+        message_handler(channel, method, {}, body)
+
+        mock_event_processor.assert_called_with([mock_get_dataset_schema.return_value], mock_connection)
+        mock_event_processor.return_value.process_events.assert_called_with([
+            ({
+                "catalog": "gebieden",
+                "collection": "bouwblokken",
+                "event_id": 1844,
+                "dataset_id": "gebieden",
+                "table_id": "bouwblokken",
+            },
+            {
+                "some": "data",
+            }),
+            ({
+                "catalog": "gebieden",
+                "collection": "bouwblokken",
+                "event_id": 1845,
+                "dataset_id": "gebieden",
+                "table_id": "bouwblokken",
+            },
+            {
+                "some": "other data",
+            })
+        ])
 
     @patch("gobeventconsumer.consumer.create_engine")
     @patch("gobeventconsumer.consumer.EventsProcessor")
@@ -141,7 +200,6 @@ class TestGOBEventConsumer(TestCase):
         message_handler(channel, method, {}, body)
 
         mock_event_processor.return_value.process_event.assert_called_with(
-            1844,
             {
                 "catalog": "nap",
                 "collection": "peilmerken",
@@ -196,7 +254,6 @@ class TestGOBEventConsumer(TestCase):
         message_handler(channel, method, {}, body)
 
         mock_event_processor.return_value.process_event.assert_called_with(
-            1844,
             {
                 "catalog": "nap",
                 "collection": "peilmerken_ligtInBouwblok",
