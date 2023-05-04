@@ -161,27 +161,38 @@ class GOBEventConsumer:
     def _on_message(self, catalog: str):
         engine = create_engine(DATABASE_URL)
         dataset_schema = _get_dataset_schema(catalog, SCHEMA_URL)
+        with engine.connect() as connection:
+            importer = EventsProcessor([dataset_schema], connection)
 
         def handle_message(channel, method, properties, body):
+            def prepare_event(event: dict):
+                header = {
+                    **event["header"],
+                    "dataset_id": event["header"]["catalog"],
+                    "table_id": event["header"]["collection"],
+                }
+                data = event["data"]
+                if method.routing_key.startswith(f"{catalog}.rel."):
+                    data = self._transform_rel_eventdata(dataset_schema, header, data)
+                else:
+                    data = self._transform_obj_eventdata(dataset_schema, header, data)
+
+                return header, data
+
             self._logger.info(f"Received message for catalog {catalog} with routing key {method.routing_key}")
 
             contents = json.loads(body.decode("utf-8"))
-            header = {
-                **contents["header"],
-                "dataset_id": contents["header"]["catalog"],
-                "table_id": contents["header"]["collection"],
-            }
-            data = contents["data"]
-
-            if method.routing_key.startswith(f"{catalog}.rel."):
-                data = self._transform_rel_eventdata(dataset_schema, header, data)
-            else:
-                data = self._transform_obj_eventdata(dataset_schema, header, data)
-
             with engine.connect() as connection:
-                importer = EventsProcessor([dataset_schema], connection)
-                importer.process_event(header["event_id"], header, data)
-            channel.basic_ack(delivery_tag=method.delivery_tag)
+                importer.conn = connection
+
+                if isinstance(contents, list):
+                    to_process = [prepare_event(event) for event in contents]
+                    importer.process_events(to_process)
+                else:
+                    header, data = prepare_event(contents)
+                    importer.process_event(header, data)
+
+                channel.basic_ack(delivery_tag=method.delivery_tag)
             self._logger.debug("Finished message handling")
 
         return handle_message
