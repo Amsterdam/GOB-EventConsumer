@@ -52,6 +52,8 @@ class GOBEventConsumer:
         All queues are created with the "single active consumer" flag, so that we can safely run multiple instances of
         this service in parallel.
         """
+        channel.basic_qos(prefetch_count=5)
+
         for catalog in self._catalogs:
             callback = self._on_message(catalog)
             self._create_queue_and_consume(
