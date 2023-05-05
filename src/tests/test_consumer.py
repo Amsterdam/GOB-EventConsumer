@@ -42,6 +42,8 @@ class TestGOBEventConsumer(TestCase):
 
         gec._on_channel_open(mock_channel)
 
+        mock_channel.basic_qos.assert_called_once_with(prefetch_count=5)
+
         mock_channel.queue_declare.assert_has_calls([
             call("gob.events.gebieden", durable=True, arguments={"x-single-active-consumer": True}),
             call("gob.events.gebieden.rel", durable=True, arguments={"x-single-active-consumer": True}),
