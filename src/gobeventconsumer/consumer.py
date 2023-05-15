@@ -5,6 +5,7 @@ import pika
 from schematools.cli import _get_dataset_schema
 from schematools.events.full import EventsProcessor
 from schematools.naming import to_snake_case
+from schematools.types import DatasetSchema
 from sqlalchemy import create_engine
 
 from gobeventconsumer.config import DATABASE_URL, EVENTS_EXCHANGE, SCHEMA_URL
@@ -54,14 +55,27 @@ class GOBEventConsumer:
         """
         channel.basic_qos(prefetch_count=5)
 
-        for catalog in self._catalogs:
-            callback = self._on_message(catalog)
-            self._create_queue_and_consume(
-                channel, f"{EVENTS_EXCHANGE}.{catalog}", f"{catalog}.*", callback
-            )  # Regular objects
-            self._create_queue_and_consume(
-                channel, f"{EVENTS_EXCHANGE}.{catalog}.rel", f"{catalog}.rel.*", callback
-            )  # Relations
+        for catalog_name in self._catalogs:
+            dataset_schema = _get_dataset_schema(catalog_name, SCHEMA_URL)
+            callback = self._on_message(dataset_schema)
+
+            for table in dataset_schema.get_tables(include_through=True):
+                if table.is_through_table:
+                    # Is relation table. Create routing key of the form nap.peilmerken.rel.peilmerken_ligtInBouwblok
+                    collection_name = to_snake_case(table.parent_table.id)
+                    routing_key = f"{catalog_name}.{collection_name}.rel.{table.id}"
+                else:
+                    # Regular object table. Creating routing key of the form nap.peilmerken
+                    collection_name = to_snake_case(table.id)
+                    routing_key = f"{catalog_name}.{collection_name}"
+
+                queue_name = f"{EVENTS_EXCHANGE}.{routing_key}"
+                self._create_queue_and_consume(
+                    channel,
+                    queue_name,
+                    routing_key,
+                    callback,
+                )
 
     def _transform_obj_eventdata(self, dataset_schema, header: dict, data: dict):
         """Transform incoming object table event to the structure as understood by the EventsProcessor.
@@ -160,9 +174,8 @@ class GOBEventConsumer:
             ),
         }
 
-    def _on_message(self, catalog: str):
+    def _on_message(self, dataset_schema: DatasetSchema):
         engine = create_engine(DATABASE_URL)
-        dataset_schema = _get_dataset_schema(catalog, SCHEMA_URL)
         with engine.connect() as connection:
             importer = EventsProcessor([dataset_schema], connection)
 
@@ -174,14 +187,14 @@ class GOBEventConsumer:
                     "table_id": event["header"]["collection"],
                 }
                 data = event["data"]
-                if method.routing_key.startswith(f"{catalog}.rel."):
+                if method.routing_key.startswith(f"{dataset_schema.id}.rel."):
                     data = self._transform_rel_eventdata(dataset_schema, header, data)
                 else:
                     data = self._transform_obj_eventdata(dataset_schema, header, data)
 
                 return header, data
 
-            self._logger.info(f"Received message for catalog {catalog} with routing key {method.routing_key}")
+            self._logger.info(f"Received message for catalog {dataset_schema.id} with routing key {method.routing_key}")
 
             contents = json.loads(body.decode("utf-8"))
             with engine.connect() as connection:
