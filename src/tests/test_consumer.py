@@ -246,7 +246,7 @@ class TestGOBEventConsumer(TestCase):
         mock_create_engine.assert_called_once()
 
         method = MagicMock()
-        method.routing_key = "nap.rel.peilmerken_ligtInBouwblok"
+        method.routing_key = "nap.peilmerken.rel.peilmerken_ligtInBouwblok"
         body = bytes(json.dumps({
             "header": {
                 "catalog": "nap",
