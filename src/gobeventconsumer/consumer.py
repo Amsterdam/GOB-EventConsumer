@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 import pika
 from schematools.cli import _get_dataset_schema
@@ -180,6 +181,8 @@ class GOBEventConsumer:
             importer = EventsProcessor([dataset_schema], connection)
 
         def handle_message(channel, method, properties, body):
+            rel_pattern = re.compile(r"\w+.\w+.rel.\w+")
+
             def prepare_event(event: dict):
                 header = {
                     **event["header"],
@@ -187,7 +190,7 @@ class GOBEventConsumer:
                     "table_id": event["header"]["collection"],
                 }
                 data = event["data"]
-                if method.routing_key.startswith(f"{dataset_schema.id}.rel."):
+                if rel_pattern.match(method.routing_key):
                     data = self._transform_rel_eventdata(dataset_schema, header, data)
                 else:
                     data = self._transform_obj_eventdata(dataset_schema, header, data)
