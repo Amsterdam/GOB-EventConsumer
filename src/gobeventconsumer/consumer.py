@@ -110,9 +110,10 @@ class GOBEventConsumer:
 
         for field in table.fields:
             if field.get("relation"):
-                relation_data = data[field.python_name]
+                attr_name = to_snake_case(field.get("shortname", field.python_name))
+                relation_data = data[attr_name]
                 identifier = field.related_table.identifier[0]
-                transformed_relations[field.python_name] = (
+                transformed_relations[attr_name] = (
                     transform_relation(identifier, relation_data)
                     if isinstance(relation_data, dict)
                     else [transform_relation(identifier, rel_data) for rel_data in relation_data]
