@@ -235,6 +235,92 @@ class TestGOBEventConsumer(TestCase):
             }
         )
 
+    @patch("gobeventconsumer.consumer.create_engine")
+    @patch("gobeventconsumer.consumer.EventsProcessor")
+    def test_message_handler_obj_event_reldata_shortname(self, mock_event_processor, mock_create_engine, mock_logger):
+        gec = GOBEventConsumer(MagicMock(), [])
+
+        dataset_schema = _get_dataset_schema("brk2", SCHEMA_URL)
+        message_handler = gec._on_message(dataset_schema)
+        mock_create_engine.assert_called_once()
+
+        method = MagicMock()
+        method.routing_key = "brk2.aantekeningenkadastraleobjecten"
+        body = bytes(json.dumps({
+            "header": {
+                "catalog": "brk2",
+                "collection": "aantekeningenkadastraleobjecten",
+                "event_id": 1844,
+            },
+            "data": {
+                "hft_btrk_op_kot": {
+                    "tid": "100.1",
+                    "id": "100",
+                    "begin_geldigheid": "2022-02-02 00:01:02",
+                    "eind_geldigheid": None,
+                    "volgnummer": 3,
+                },
+                "heeft_brk_betrokken_persoon": {
+                    "tid": "200.1",
+                    "id": "200",
+                    "begin_geldigheid": "2022-02-02 00:01:02",
+                    "eind_geldigheid": None,
+                    "volgnummer": 4,
+                },
+                "is_gebaseerd_op_brk_stukdeel": {
+                    "tid": "300.1",
+                    "id": "300",
+                    "begin_geldigheid": "2022-02-02 00:01:02",
+                    "eind_geldigheid": None,
+                    "volgnummer": 5,
+                },
+                "some": "other",
+                "data": {
+                    "etc": "more",
+                }
+            }
+        }), "utf-8")
+        channel = MagicMock()
+
+        message_handler(channel, method, {}, body)
+
+        mock_event_processor.return_value.process_event.assert_called_with(
+            {
+                "catalog": "brk2",
+                "collection": "aantekeningenkadastraleobjecten",
+                "event_id": 1844,
+                "dataset_id": "brk2",
+                "table_id": "aantekeningenkadastraleobjecten",
+            },
+            {
+                "hft_btrk_op_kot": {
+                    "id": "100.1",
+                    "identificatie": "100",
+                    "begin_geldigheid": "2022-02-02 00:01:02",
+                    "eind_geldigheid": None,
+                    "volgnummer": 3,
+                },
+                "heeft_brk_betrokken_persoon": {
+                    "id": "200.1",
+                    "identificatie": "200",
+                    "begin_geldigheid": "2022-02-02 00:01:02",
+                    "eind_geldigheid": None,
+                    "volgnummer": 4,
+                },
+                "is_gebaseerd_op_brk_stukdeel": {
+                    "id": "300.1",
+                    "identificatie": "300",
+                    "begin_geldigheid": "2022-02-02 00:01:02",
+                    "eind_geldigheid": None,
+                    "volgnummer": 5,
+                },
+                "some": "other",
+                "data": {
+                    "etc": "more",
+                },
+            }
+        )
+
 
     @patch("gobeventconsumer.consumer.create_engine")
     @patch("gobeventconsumer.consumer.EventsProcessor")
