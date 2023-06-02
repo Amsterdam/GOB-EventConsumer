@@ -373,6 +373,58 @@ class TestGOBEventConsumer(TestCase):
             }
         )
 
+    @patch("gobeventconsumer.consumer.create_engine")
+    @patch("gobeventconsumer.consumer.EventsProcessor")
+    def test_message_handler_rel_event_shortname(self, mock_event_processor, mock_create_engine, mock_logger):
+        gec = GOBEventConsumer(MagicMock(), [])
+
+        dataset_schema = _get_dataset_schema("brk2", SCHEMA_URL)
+        message_handler = gec._on_message(dataset_schema)
+        mock_create_engine.assert_called_once()
+
+        method = MagicMock()
+        method.routing_key = "brk2.aantekeningenkadastraleobjecten.rel.aantekeningenkadastraleobjecten_heeftBetrekkingOpBrkKadastraalObject"
+        body = bytes(json.dumps({
+            "header": {
+                "catalog": "brk2",
+                "collection": "aantekeningenkadastraleobjecten_heeftBetrekkingOpBrkKadastraalObject",
+                "event_id": 1844,
+            },
+            "data": {
+                "id": 24802,
+                "src_id": "2148",
+                "src_volgnummer": 1,
+                "dst_id": "298",
+                "dst_volgnummer": 2,
+                "begin_geldigheid": "2022-02-02 00:01:02",
+                "eind_geldigheid": None,
+            }
+        }), "utf-8")
+        channel = MagicMock()
+
+        message_handler(channel, method, {}, body)
+
+        mock_event_processor.return_value.process_event.assert_called_with(
+            {
+                "catalog": "brk2",
+                "collection": "aantekeningenkadastraleobjecten_heeftBetrekkingOpBrkKadastraalObject",
+                "event_id": 1844,
+                "dataset_id": "brk2",
+                "table_id": "aantekeningenkadastraleobjecten_heeftBetrekkingOpBrkKadastraalObject",
+            },
+            {
+                "id": 24802,
+                "aantekeningenkadastraleobjecten_id": "2148.1",
+                "aantekeningenkadastraleobjecten_identificatie": "2148",
+                "aantekeningenkadastraleobjecten_volgnummer": 1,
+                "hft_btrk_op_kot_id": "298.2",
+                "hft_btrk_op_kot_identificatie": "298",
+                "hft_btrk_op_kot_volgnummer": 2,
+                "begin_geldigheid": "2022-02-02 00:01:02",
+                "eind_geldigheid": None,
+            }
+        )
+
     def test_consume(self, mock_logger):
         gec = GOBEventConsumer(MagicMock(), [])
         gec._connect = MagicMock()
