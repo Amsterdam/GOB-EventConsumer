@@ -165,8 +165,8 @@ class GOBEventConsumer:
         transformed_data = {field: data[field] for field in copy_fields}
 
         collection, relation_name = header["collection"].split("_")
-        relation_name_snake = to_snake_case(relation_name)
         table = dataset_schema.get_table_by_id(collection)
+        relation_name_snake = to_snake_case(table.get_field_by_id(relation_name).shortname)
 
         return {
             **transformed_data,
