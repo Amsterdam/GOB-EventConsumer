@@ -200,16 +200,19 @@ class GOBEventConsumer:
 
             self._logger.info(f"Received message for catalog {dataset_schema.id} with routing key {method.routing_key}")
 
+            if recovery_mode := method.redelivered:
+                self._logger.info("Message was redelivered. Recovering.")
+
             contents = json.loads(body.decode("utf-8"))
             with engine.connect() as connection:
                 importer.conn = connection
 
                 if isinstance(contents, list):
                     to_process = [prepare_event(event) for event in contents]
-                    importer.process_events(to_process)
+                    importer.process_events(to_process, recovery_mode=recovery_mode)
                 else:
                     header, data = prepare_event(contents)
-                    importer.process_event(header, data)
+                    importer.process_event(header, data, recovery_mode=recovery_mode)
 
                 channel.basic_ack(delivery_tag=method.delivery_tag)
             self._logger.debug("Finished message handling")
