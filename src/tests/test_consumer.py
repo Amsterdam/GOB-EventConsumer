@@ -113,7 +113,8 @@ class TestGOBEventConsumer(TestCase):
             },
             {
                 "some": "data",
-            }
+            },
+            recovery_mode=method.redelivered
         )
 
     @patch("gobeventconsumer.consumer.create_engine")
@@ -175,7 +176,7 @@ class TestGOBEventConsumer(TestCase):
             {
                 "some": "other data",
             })
-        ])
+        ], recovery_mode=method.redelivered)
 
     @patch("gobeventconsumer.consumer.create_engine")
     @patch("gobeventconsumer.consumer.EventsProcessor")
@@ -232,7 +233,8 @@ class TestGOBEventConsumer(TestCase):
                 "data": {
                     "etc": "more",
                 },
-            }
+            },
+            recovery_mode=method.redelivered
         )
 
     @patch("gobeventconsumer.consumer.create_engine")
@@ -318,7 +320,8 @@ class TestGOBEventConsumer(TestCase):
                 "data": {
                     "etc": "more",
                 },
-            }
+            },
+            recovery_mode=method.redelivered
         )
 
 
@@ -370,7 +373,8 @@ class TestGOBEventConsumer(TestCase):
                 "ligt_in_bouwblok_volgnummer": 2,
                 "begin_geldigheid": "2022-02-02 00:01:02",
                 "eind_geldigheid": None,
-            }
+            },
+            recovery_mode=method.redelivered
         )
 
     @patch("gobeventconsumer.consumer.create_engine")
@@ -422,7 +426,8 @@ class TestGOBEventConsumer(TestCase):
                 "hft_btrk_op_kot_volgnummer": 2,
                 "begin_geldigheid": "2022-02-02 00:01:02",
                 "eind_geldigheid": None,
-            }
+            },
+            recovery_mode=method.redelivered
         )
 
     def test_consume(self, mock_logger):
