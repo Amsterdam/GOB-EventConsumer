@@ -9,7 +9,7 @@ from schematools.naming import to_snake_case
 from schematools.types import DatasetSchema
 from sqlalchemy import create_engine
 
-from gobeventconsumer.config import DATABASE_URL, EVENTS_EXCHANGE, SCHEMA_URL
+from gobeventconsumer.config import DATABASE_URL, EVENTS_EXCHANGE, INSTANCE_CNT, INSTANCE_IDX, SCHEMA_URL
 
 logging.getLogger("pika").setLevel(logging.WARNING)
 
@@ -36,13 +36,25 @@ class GOBEventConsumer:
     def _on_open(self, connection):
         connection.channel(on_open_callback=self._on_channel_open)
 
-    def _create_queue_and_consume(self, channel: pika.channel.Channel, queue_name: str, routing_key: str, callback):
+    def _create_queue_with_binding(self, channel: pika.channel.Channel, queue_name: str, routing_key: str):
         channel.queue_declare(queue_name, durable=True, arguments={"x-single-active-consumer": True})
         channel.queue_bind(exchange=EVENTS_EXCHANGE, queue=queue_name, routing_key=routing_key)
         self._logger.info(f"Bind routing key {routing_key} to queue {queue_name}")
 
+    def _listen_to_queue(self, channel: pika.channel.Channel, queue_name: str, callback):
         channel.basic_consume(queue=queue_name, on_message_callback=callback)
         self._logger.info(f"Start listening to queue {queue_name}")
+
+    def _listen_to_queues(self, channel: pika.channel.Channel, queues: tuple[str, callable]):
+        """Listen to queues, distributing listeners over all instances.
+
+        :param channel:
+        :param queues:
+        :return:
+        """
+        listen_to = [q for idx, q in enumerate(queues) if idx % INSTANCE_CNT == INSTANCE_IDX]
+        for queue_name, callback in listen_to:
+            self._listen_to_queue(channel, queue_name, callback)
 
     def _on_channel_open(self, channel: pika.channel.Channel):
         """Create two queues for each catalog.
@@ -56,6 +68,7 @@ class GOBEventConsumer:
         """
         channel.basic_qos(prefetch_count=5)
 
+        queues = []
         for catalog_name in self._catalogs:
             dataset_schema = _get_dataset_schema(catalog_name, SCHEMA_URL)
             callback = self._on_message(dataset_schema)
@@ -71,12 +84,13 @@ class GOBEventConsumer:
                     routing_key = f"{catalog_name}.{collection_name}"
 
                 queue_name = f"{EVENTS_EXCHANGE}.{routing_key}"
-                self._create_queue_and_consume(
+                self._create_queue_with_binding(
                     channel,
                     queue_name,
                     routing_key,
-                    callback,
                 )
+                queues.append((queue_name, callback))
+        self._listen_to_queues(channel, queues)
 
     def _transform_obj_eventdata(self, dataset_schema, header: dict, data: dict):
         """Transform incoming object table event to the structure as understood by the EventsProcessor.

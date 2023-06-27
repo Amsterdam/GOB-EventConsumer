@@ -22,3 +22,8 @@ EVENTS_EXCHANGE = "gob.events"
 CATALOGS = os.getenv("LISTEN_TO_CATALOGS", "").split(",")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 SCHEMA_URL = os.getenv("SCHEMA_URL", "")
+
+INSTANCE_CNT = os.getenv("INSTANCE_CNT", 1)
+INSTANCE_IDX = os.getenv("INSTANCE_IDX", 0)
+
+assert INSTANCE_IDX < INSTANCE_CNT, "INSTANCE_IDX must be less than INSTANCE_CNT"
