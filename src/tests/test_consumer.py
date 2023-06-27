@@ -36,6 +36,8 @@ class TestGOBEventConsumer(TestCase):
         gec._on_open(mock_connection)
         mock_connection.channel.assert_called_with(on_open_callback=gec._on_channel_open)
 
+    @patch("gobeventconsumer.consumer.INSTANCE_CNT", 1)
+    @patch("gobeventconsumer.consumer.INSTANCE_IDX", 0)
     def test_on_channel_open(self, mock_logger):
         gec = GOBEventConsumer(MagicMock(), ["meetbouten"])
         gec._on_message = MagicMock()
@@ -67,6 +69,55 @@ class TestGOBEventConsumer(TestCase):
         for routing_key in routing_keys:
             queue_declare_calls.append(call(f"gob.events.{routing_key}", durable=True, arguments={"x-single-active-consumer": True}))
             queue_bind_calls.append(call(exchange=EVENTS_EXCHANGE, queue=f"gob.events.{routing_key}", routing_key=routing_key))
+            basic_consume_calls.append(call(queue=f"gob.events.{routing_key}", on_message_callback=gec._on_message.return_value))
+
+        self.assertEqual(EVENTS_EXCHANGE, "gob.events")
+
+        mock_channel.queue_declare.assert_has_calls(queue_declare_calls)
+        mock_channel.queue_bind.assert_has_calls(queue_bind_calls)
+        mock_channel.basic_consume.assert_has_calls(basic_consume_calls)
+
+    @patch("gobeventconsumer.consumer.INSTANCE_CNT", 3)
+    @patch("gobeventconsumer.consumer.INSTANCE_IDX", 1)
+    def test_on_channel_open_multiple_instances(self, mock_logger):
+        gec = GOBEventConsumer(MagicMock(), ["meetbouten"])
+        gec._on_message = MagicMock()
+        mock_channel = MagicMock()
+
+        gec._on_channel_open(mock_channel)
+
+        mock_channel.basic_qos.assert_called_once_with(prefetch_count=5)
+
+        routing_keys = [
+            "meetbouten.meetbouten",
+            "meetbouten.metingen",
+            "meetbouten.referentiepunten",
+            "meetbouten.rollagen",
+            "meetbouten.meetbouten.rel.meetbouten_ligtInBouwblok",
+            "meetbouten.meetbouten.rel.meetbouten_ligtInBuurt",
+            "meetbouten.meetbouten.rel.meetbouten_ligtInStadsdeel",
+            "meetbouten.metingen.rel.metingen_refereertAanReferentiepunten",
+            "meetbouten.referentiepunten.rel.referentiepunten_ligtInBouwblok",
+            "meetbouten.referentiepunten.rel.referentiepunten_ligtInBuurt",
+            "meetbouten.referentiepunten.rel.referentiepunten_ligtInStadsdeel",
+            "meetbouten.rollagen.rel.rollagen_isGemetenVanBouwblok",
+        ]
+        routing_keys_to_consume = [
+            "meetbouten.metingen",
+            "meetbouten.meetbouten.rel.meetbouten_ligtInBouwblok",
+            "meetbouten.metingen.rel.metingen_refereertAanReferentiepunten",
+            "meetbouten.referentiepunten.rel.referentiepunten_ligtInStadsdeel",
+        ]
+
+        queue_declare_calls = []
+        queue_bind_calls = []
+        basic_consume_calls = []
+
+        for routing_key in routing_keys:
+            queue_declare_calls.append(call(f"gob.events.{routing_key}", durable=True, arguments={"x-single-active-consumer": True}))
+            queue_bind_calls.append(call(exchange=EVENTS_EXCHANGE, queue=f"gob.events.{routing_key}", routing_key=routing_key))
+
+        for routing_key in routing_keys_to_consume:
             basic_consume_calls.append(call(queue=f"gob.events.{routing_key}", on_message_callback=gec._on_message.return_value))
 
         self.assertEqual(EVENTS_EXCHANGE, "gob.events")
