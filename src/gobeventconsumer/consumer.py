@@ -167,7 +167,8 @@ class GOBEventConsumer:
             transformed = {
                 f"{new_prefix}_id": ".".join(
                     [str(f) for f in [data[f"{src_or_dst}_id"], data[f"{src_or_dst}_volgnummer"]] if f is not None]
-                ),
+                )
+                or None,
                 f"{new_prefix}_{identifier_fields[0]}": data[f"{src_or_dst}_id"],
             }
 
