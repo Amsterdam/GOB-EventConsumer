@@ -385,8 +385,11 @@ class TestGOBEventConsumer(TestCase):
         message_handler = gec._on_message(dataset_schema)
         mock_create_engine.assert_called_once()
 
+        channel = MagicMock()
         method = MagicMock()
         method.routing_key = "nap.peilmerken.rel.peilmerken_ligtInBouwblok"
+
+        # Test with relation
         body = bytes(json.dumps({
             "header": {
                 "catalog": "nap",
@@ -403,10 +406,7 @@ class TestGOBEventConsumer(TestCase):
                 "eind_geldigheid": None,
             }
         }), "utf-8")
-        channel = MagicMock()
-
         message_handler(channel, method, {}, body)
-
         mock_event_processor.return_value.process_event.assert_called_with(
             {
                 "catalog": "nap",
@@ -422,6 +422,45 @@ class TestGOBEventConsumer(TestCase):
                 "ligt_in_bouwblok_id": "298.2",
                 "ligt_in_bouwblok_identificatie": "298",
                 "ligt_in_bouwblok_volgnummer": 2,
+                "begin_geldigheid": "2022-02-02 00:01:02",
+                "eind_geldigheid": None,
+            },
+            recovery_mode=method.redelivered
+        )
+
+        # Test with empty relation
+        body = bytes(json.dumps({
+            "header": {
+                "catalog": "nap",
+                "collection": "peilmerken_ligtInBouwblok",
+                "event_id": 1844,
+            },
+            "data": {
+                "id": 24802,
+                "src_id": "2148",
+                "src_volgnummer": None,
+                "dst_id": None,
+                "dst_volgnummer": None,
+                "begin_geldigheid": "2022-02-02 00:01:02",
+                "eind_geldigheid": None,
+            }
+        }), "utf-8")
+        message_handler(channel, method, {}, body)
+        mock_event_processor.return_value.process_event.assert_called_with(
+            {
+                "catalog": "nap",
+                "collection": "peilmerken_ligtInBouwblok",
+                "event_id": 1844,
+                "dataset_id": "nap",
+                "table_id": "peilmerken_ligtInBouwblok",
+            },
+            {
+                "id": 24802,
+                "peilmerken_id": "2148",
+                "peilmerken_identificatie": "2148",
+                "ligt_in_bouwblok_id": None,
+                "ligt_in_bouwblok_identificatie": None,
+                "ligt_in_bouwblok_volgnummer": None,
                 "begin_geldigheid": "2022-02-02 00:01:02",
                 "eind_geldigheid": None,
             },
