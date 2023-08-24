@@ -1,4 +1,4 @@
-amsterdam-schema-tools==5.13.1
+amsterdam-schema-tools==5.13.4
 pika==1.3.1
 
 black~=23.1.0
