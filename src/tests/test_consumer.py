@@ -49,16 +49,18 @@ class TestGOBEventConsumer(TestCase):
 
         routing_keys = [
             "meetbouten.meetbouten",
-            "meetbouten.metingen",
-            "meetbouten.referentiepunten",
-            "meetbouten.rollagen",
             "meetbouten.meetbouten.rel.meetbouten_ligtInBouwblok",
             "meetbouten.meetbouten.rel.meetbouten_ligtInBuurt",
             "meetbouten.meetbouten.rel.meetbouten_ligtInStadsdeel",
+            "meetbouten.metingen",
+            "meetbouten.metingen.rel.metingen_hoortBijMeetbout",
             "meetbouten.metingen.rel.metingen_refereertAanReferentiepunten",
+            "meetbouten.referentiepunten",
             "meetbouten.referentiepunten.rel.referentiepunten_ligtInBouwblok",
             "meetbouten.referentiepunten.rel.referentiepunten_ligtInBuurt",
             "meetbouten.referentiepunten.rel.referentiepunten_ligtInStadsdeel",
+            "meetbouten.referentiepunten.rel.referentiepunten_isNapPeilmerk",
+            "meetbouten.rollagen",
             "meetbouten.rollagen.rel.rollagen_isGemetenVanBouwblok",
         ]
 
@@ -90,23 +92,26 @@ class TestGOBEventConsumer(TestCase):
 
         routing_keys = [
             "meetbouten.meetbouten",
-            "meetbouten.metingen",
-            "meetbouten.referentiepunten",
-            "meetbouten.rollagen",
             "meetbouten.meetbouten.rel.meetbouten_ligtInBouwblok",
             "meetbouten.meetbouten.rel.meetbouten_ligtInBuurt",
             "meetbouten.meetbouten.rel.meetbouten_ligtInStadsdeel",
+            "meetbouten.metingen",
+            "meetbouten.metingen.rel.metingen_hoortBijMeetbout",
             "meetbouten.metingen.rel.metingen_refereertAanReferentiepunten",
+            "meetbouten.referentiepunten",
             "meetbouten.referentiepunten.rel.referentiepunten_ligtInBouwblok",
             "meetbouten.referentiepunten.rel.referentiepunten_ligtInBuurt",
             "meetbouten.referentiepunten.rel.referentiepunten_ligtInStadsdeel",
+            "meetbouten.referentiepunten.rel.referentiepunten_isNapPeilmerk",
+            "meetbouten.rollagen",
             "meetbouten.rollagen.rel.rollagen_isGemetenVanBouwblok",
         ]
         routing_keys_to_consume = [
-            "meetbouten.metingen",
             "meetbouten.meetbouten.rel.meetbouten_ligtInBouwblok",
-            "meetbouten.metingen.rel.metingen_refereertAanReferentiepunten",
+            "meetbouten.metingen",
+            "meetbouten.referentiepunten",
             "meetbouten.referentiepunten.rel.referentiepunten_ligtInStadsdeel",
+            "meetbouten.rollagen.rel.rollagen_isGemetenVanBouwblok",
         ]
 
         queue_declare_calls = []
