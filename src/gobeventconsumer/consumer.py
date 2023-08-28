@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from dataclasses import dataclass
 
 import pika
 from schematools.cli import _get_dataset_schema
@@ -12,6 +13,15 @@ from sqlalchemy import create_engine
 from gobeventconsumer.config import DATABASE_URL, EVENTS_EXCHANGE, INSTANCE_CNT, INSTANCE_IDX, SCHEMA_URL
 
 logging.getLogger("pika").setLevel(logging.WARNING)
+
+
+@dataclass
+class QueueBindingConfig:
+    """Configuration for a queue binding."""
+
+    queue_name: str
+    routing_key: str
+    callback: callable
 
 
 class GOBEventConsumer:
@@ -45,52 +55,50 @@ class GOBEventConsumer:
         channel.basic_consume(queue=queue_name, on_message_callback=callback)
         self._logger.info(f"Start listening to queue {queue_name}")
 
-    def _listen_to_queues(self, channel: pika.channel.Channel, queues: tuple[str, callable]):
+    def _listen_to_queues(self, channel: pika.channel.Channel, queue_configs: list[QueueBindingConfig]):
         """Listen to queues, distributing listeners over all instances.
 
         :param channel:
         :param queues:
         :return:
         """
-        listen_to = [q for idx, q in enumerate(queues) if idx % INSTANCE_CNT == INSTANCE_IDX]
-        for queue_name, callback in listen_to:
-            self._listen_to_queue(channel, queue_name, callback)
+        listen_to = [q for idx, q in enumerate(queue_configs) if idx % INSTANCE_CNT == INSTANCE_IDX]
+        for queue_config in listen_to:
+            self._listen_to_queue(channel, queue_config.queue_name, queue_config.callback)
+
+    def _create_queues_with_bindings(self, channel: pika.channel.Channel, queue_configs: list[QueueBindingConfig]):
+        for queue_config in queue_configs:
+            self._create_queue_with_binding(channel, queue_config.queue_name, queue_config.routing_key)
 
     def _on_channel_open(self, channel: pika.channel.Channel):
-        """Create two queues for each catalog.
-
-        For example, for catalog 'nap', we create the following queues:
-        - nap: This queue receives messages with routing key nap.* . These are the regular nap objects.
-        - nap.rel: This queue receives messages with routing key nap.rel.*, for the relation table events.
+        """Create queues for each table (main table and relation tables) for each catalog.
 
         All queues are created with the "single active consumer" flag, so that we can safely run multiple instances of
         this service in parallel.
         """
         channel.basic_qos(prefetch_count=1)
 
-        queues = []
+        queue_configs = []
         for catalog_name in self._catalogs:
             dataset_schema = _get_dataset_schema(catalog_name, SCHEMA_URL)
             callback = self._on_message(dataset_schema)
 
-            for table in dataset_schema.get_tables(include_through=True):
-                if table.is_through_table:
-                    # Is relation table. Create routing key of the form nap.peilmerken.rel.peilmerken_ligtInBouwblok
-                    collection_name = to_snake_case(table.parent_table.id)
-                    routing_key = f"{catalog_name}.{collection_name}.rel.{table.id}"
-                else:
-                    # Regular object table. Creating routing key of the form nap.peilmerken
-                    collection_name = to_snake_case(table.id)
-                    routing_key = f"{catalog_name}.{collection_name}"
-
+            for table in dataset_schema.get_tables():
+                # Main table
+                routing_key = f"{catalog_name}.{to_snake_case(table.id)}"
                 queue_name = f"{EVENTS_EXCHANGE}.{routing_key}"
-                self._create_queue_with_binding(
-                    channel,
-                    queue_name,
-                    routing_key,
-                )
-                queues.append((queue_name, callback))
-        self._listen_to_queues(channel, queues)
+                queue_configs.append(QueueBindingConfig(queue_name, routing_key, callback))
+
+                # Find all relations for this table
+                for field in table.fields:
+                    if field.get("relation"):
+                        collection_name = table.id
+                        routing_key = f"{catalog_name}.{collection_name}.rel.{collection_name}_{field.id}"
+                        queue_name = f"{EVENTS_EXCHANGE}.{routing_key}"
+                        queue_configs.append(QueueBindingConfig(queue_name, routing_key, callback))
+
+        self._create_queues_with_bindings(channel, queue_configs)
+        self._listen_to_queues(channel, queue_configs)
 
     def _transform_obj_eventdata(self, dataset_schema, header: dict, data: dict):
         """Transform incoming object table event to the structure as understood by the EventsProcessor.
