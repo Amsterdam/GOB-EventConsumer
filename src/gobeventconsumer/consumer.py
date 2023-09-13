@@ -238,7 +238,7 @@ class GOBEventConsumer:
                     importer.process_event(header, data, recovery_mode=recovery_mode)
 
                 channel.basic_ack(delivery_tag=method.delivery_tag)
-            self._logger.debug("Finished message handling")
+            self._logger.info(f"Finished message for catalog {dataset_schema.id} with routing key {method.routing_key}")
 
         return handle_message
 
