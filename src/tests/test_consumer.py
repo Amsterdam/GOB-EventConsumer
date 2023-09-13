@@ -172,6 +172,9 @@ class TestGOBEventConsumer(TestCase):
             },
             recovery_mode=method.redelivered
         )
+        gec._logger.info.assert_called_with(
+            f"Finished message for catalog gebieden with routing key gebieden.bouwblokken"
+        )
 
     @patch("gobeventconsumer.consumer.create_engine")
     @patch("gobeventconsumer.consumer.EventsProcessor")
