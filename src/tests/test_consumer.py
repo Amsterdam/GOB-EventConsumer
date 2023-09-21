@@ -3,7 +3,7 @@ from unittest import TestCase
 from unittest.mock import patch, MagicMock, call
 from schematools.cli import _get_dataset_schema
 
-from gobeventconsumer.config import EVENTS_EXCHANGE, SCHEMA_URL
+from gobeventconsumer.config import EVENTS_EXCHANGE, SCHEMA_URL, DATABASE_URL
 from gobeventconsumer.consumer import GOBEventConsumer
 
 
@@ -140,7 +140,7 @@ class TestGOBEventConsumer(TestCase):
         mock_dataset_schema = MagicMock()
         mock_dataset_schema.id = "gebieden"
         message_handler = gec._on_message(mock_dataset_schema)
-        mock_create_engine.assert_called_once()
+        mock_create_engine.assert_called_with(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
 
         method = MagicMock()
         method.routing_key = "gebieden.bouwblokken"

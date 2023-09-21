@@ -200,7 +200,7 @@ class GOBEventConsumer:
         }
 
     def _on_message(self, dataset_schema: DatasetSchema):
-        engine = create_engine(DATABASE_URL)
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
         with engine.connect() as connection:
             importer = EventsProcessor([dataset_schema], connection)
 
