@@ -528,6 +528,57 @@ class TestGOBEventConsumer(TestCase):
             recovery_mode=method.redelivered
         )
 
+    @patch("gobeventconsumer.consumer.create_engine")
+    @patch("gobeventconsumer.consumer.EventsProcessor")
+    def test_message_handler_rel_event_collection_shortname(self, mock_event_processor, mock_create_engine, _):
+        gec = GOBEventConsumer(MagicMock(), [])
+
+        dataset_schema = _get_dataset_schema("hr", SCHEMA_URL)
+        message_handler = gec._on_message(dataset_schema)
+        mock_create_engine.assert_called_once()
+
+        method = MagicMock()
+        method.routing_key = "hr.natuurlijkepersonen.rel.natuurlijkepersonen_isFunctieVervullingen"
+        body = bytes(json.dumps({
+            "header": {
+                "catalog": "hr",
+                "collection": "natuurlijkepersonen_isFunctieVervullingen",
+                "event_id": 1844,
+            },
+            "data": {
+                "id": 24802,
+                "src_id": "100000000003071191",
+                "src_volgnummer": None,
+                "dst_id": "100000000003071190",
+                "dst_volgnummer": None,
+                "begin_geldigheid": "2022-02-02 00:01:02",
+                "eind_geldigheid": None,
+            }
+        }), "utf-8")
+        channel = MagicMock()
+
+        message_handler(channel, method, {}, body)
+
+        mock_event_processor.return_value.process_event.assert_called_with(
+            {
+                "catalog": "hr",
+                "collection": "natuurlijkepersonen_isFunctieVervullingen",
+                "event_id": 1844,
+                "dataset_id": "hr",
+                "table_id": "natuurlijkepersonen_isFunctieVervullingen",
+            },
+            {
+                "id": 24802,
+                "begin_geldigheid": "2022-02-02 00:01:02",
+                "eind_geldigheid": None,
+                "nps_id": "100000000003071191",
+                "nps_identificatie": "100000000003071191",
+                "is_functie_vervullingen_id": "100000000003071190",
+                "is_functie_vervullingen_identificatie": "100000000003071190",
+            },
+            recovery_mode=method.redelivered
+        )
+
     def test_consume(self, mock_logger):
         gec = GOBEventConsumer(MagicMock(), [])
         gec._connect = MagicMock()
