@@ -155,6 +155,8 @@ class GOBEventConsumer:
         For example, for nap peilmerken_ligtInBouwblok, the transformed event has the following keys, with the original
         keys from the event on the right hand side.
 
+            :: NOTE: peilmerken is a shortname if one is defined in amschema
+
         peilmerken_identificatie: src_id
         peilmerken_id: src_id (would have been src_id.src_volgnummer if peilmerken would have had states. Note that the
                                incoming event does contain an empty (None) src_volgnummer))
@@ -191,9 +193,12 @@ class GOBEventConsumer:
         table = dataset_schema.get_table_by_id(collection)
         relation_name_snake = to_snake_case(table.get_field_by_id(relation_name).shortname)
 
+        # shortname or fullname if no shortname present (natuurlijkepersonen_isFunctieVervullingen -> nps)
+        collection_name = to_snake_case(table.shortname)
+
         return {
             **transformed_data,
-            **get_transformed_fields(data, "src", collection, table.identifier),
+            **get_transformed_fields(data, "src", collection_name, table.identifier),
             **get_transformed_fields(
                 data, "dst", relation_name_snake, table.get_field_by_id(relation_name).related_table.identifier
             ),
